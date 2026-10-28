@@ -13,8 +13,7 @@ class GasolineViewModel(
     private val gasolineDao: GasolineDao
 ) : ViewModel() {
 
-    // Lista de registros que observa la pantalla del historial.
-    // Se actualiza cuando cambia la información en Room.
+    // Observa los registros y actualiza el historial cuando cambian.
     val transaction: StateFlow<List<GasolineTransaction>> =
         gasolineDao.getAllTransactions()
             .stateIn(
@@ -23,13 +22,14 @@ class GasolineViewModel(
                 initialValue = emptyList()
             )
 
-    // Crea un registro con los datos ingresados y lo guarda.
+    // Crea y guarda un registro con los datos recibidos.
     fun addTransaction(
         price: Double,
         liters: Double,
         tip: Double,
         date: String,
-        kilometers: Double
+        kilometers: Double,
+        includesTip: Boolean = tip > 0.0
     ) {
         viewModelScope.launch {
 
@@ -38,26 +38,27 @@ class GasolineViewModel(
                 liters = liters,
                 tip = tip,
                 date = date,
-                kilometers = kilometers
+                kilometers = kilometers,
+                includesTip = includesTip
             )
 
             gasolineDao.insertTransaction(newTransaction)
         }
     }
 
-    // Consulta un registro por su ID para cargar sus datos en pantalla.
+    // Consulta un registro específico por su identificador.
     suspend fun getTransactionById(id: Int): GasolineTransaction? {
         return gasolineDao.getTransactionById(id)
     }
 
-    // Guarda los cambios realizados en un registro existente.
+    // Guarda los cambios de un registro existente.
     fun updateTransaction(transaction: GasolineTransaction) {
         viewModelScope.launch {
             gasolineDao.updateTransaction(transaction)
         }
     }
 
-    // Elimina de la base de datos el registro seleccionado.
+    // Elimina el registro seleccionado.
     fun deleteTransaction(transaction: GasolineTransaction) {
         viewModelScope.launch {
             gasolineDao.deleteTransaction(transaction)

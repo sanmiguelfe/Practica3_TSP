@@ -9,8 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -47,8 +47,8 @@ import com.mexiti.costogasolina.ui.components.EditNumberField
 import com.mexiti.costogasolina.ui.components.MainTitle
 import com.mexiti.costogasolina.ui.theme.CostoGasolinaTheme
 import com.mexiti.costogasolina.viewmodel.GasolineViewModel
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -61,8 +61,17 @@ fun AddView(
 ) {
     CostGasLayout(
         navController = navController,
-        onSaveTransaction = { price, liters, tip, date, kilometers ->
-            viewModel.addTransaction(price, liters, tip, date, kilometers)
+        onSaveTransaction = {
+                price, liters, tip, date, kilometers, includesTip ->
+
+            viewModel.addTransaction(
+                price = price,
+                liters = liters,
+                tip = tip,
+                date = date,
+                kilometers = kilometers,
+                includesTip = includesTip
+            )
         },
         modifier = modifier
     )
@@ -72,10 +81,11 @@ fun AddView(
 @Composable
 fun CostGasLayout(
     navController: NavController,
-    onSaveTransaction: (Double,Double,Double,String,Double) -> Unit ,
+    onSaveTransaction: (
+        Double, Double, Double, String, Double, Boolean
+    ) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    //Estado para gestionar el Snackbar temporal
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -84,16 +94,17 @@ fun CostGasLayout(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    MainTitle(title = stringResource(id = R.string.calcular_monto))
+                    MainTitle(
+                        title = stringResource(R.string.calcular_monto)
+                    )
                 },
                 navigationIcon = {
                     IconButton(
-                        onClick = { navController.popBackStack() }) {
-                        // Icono de flecha de retroceso
+                        onClick = { navController.popBackStack() }
+                    ) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Regresar"
-
                         )
                     }
                 },
@@ -103,19 +114,32 @@ fun CostGasLayout(
                 )
             )
         },
-        snackbarHost = {  SnackbarHost(snackbarHostState) }
-
+        snackbarHost = {
+            SnackbarHost(snackbarHostState)
+        }
     ) { innerPadding ->
+
         CostGasContent(
-           onSaveTransaction = { price, liters, tip, date, kilometers ->
-                 onSaveTransaction(price,liters,tip,date,kilometers)
-               scope.launch {
-                   snackbarHostState.showSnackbar("✓ Registro guardado correctamente")
-                   delay(800)
-                   navController.popBackStack()
-               }
-           }
-            ,
+            onSaveTransaction = {
+                    price, liters, tip, date, kilometers, includesTip ->
+
+                onSaveTransaction(
+                    price,
+                    liters,
+                    tip,
+                    date,
+                    kilometers,
+                    includesTip
+                )
+
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        "✓ Registro guardado correctamente"
+                    )
+                    delay(800)
+                    navController.popBackStack()
+                }
+            },
             modifier = Modifier.padding(innerPadding)
         )
     }
@@ -123,7 +147,9 @@ fun CostGasLayout(
 
 @Composable
 fun CostGasContent(
-    onSaveTransaction: (Double, Double, Double, String, Double) -> Unit,
+    onSaveTransaction: (
+        Double, Double, Double, String, Double, Boolean
+    ) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var precioLitroEntrada by remember { mutableStateOf("") }
@@ -133,17 +159,31 @@ fun CostGasContent(
     var guardarKilometros by remember { mutableStateOf(false) }
     var kilometrsRecorridos by remember { mutableStateOf("") }
 
-    // Conversión segura de valores obligatorios y opcionales
+    // Convierte las entradas de texto a números.
     val precioLitro = precioLitroEntrada.toDoubleOrNull() ?: 0.0
     val cantLitros = cantLitrosEntrada.toDoubleOrNull() ?: 0.0
-    val propina = if (darPropina) propinaEntrada.toDoubleOrNull() ?: 0.0 else 0.0
-    val kilometraje = if (guardarKilometros) kilometrsRecorridos.toDoubleOrNull() ?: 0.0 else 0.0
 
-    val total = calcularMonto(precioLitro, cantLitros, darPropina = darPropina, propina = propina)
+    val propina = if (darPropina) {
+        propinaEntrada.toDoubleOrNull() ?: 0.0
+    } else {
+        0.0
+    }
 
-    // Validar que los campos obligatorios contengan valores válidos > 0
+    val kilometraje = if (guardarKilometros) {
+        kilometrsRecorridos.toDoubleOrNull() ?: 0.0
+    } else {
+        0.0
+    }
+
+    // Reutiliza el cálculo original del proyecto.
+    val total = calcularMonto(
+        precioLitro,
+        cantLitros,
+        darPropina = darPropina,
+        propina = propina
+    )
+
     val isFormValid = precioLitro > 0.0 && cantLitros > 0.0
-
 
     Column(
         modifier = modifier
@@ -152,7 +192,6 @@ fun CostGasContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Tarjeta principal con el formulario
         ElevatedCard(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -160,28 +199,35 @@ fun CostGasContent(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Precio por litro.
                 EditNumberField(
                     label = R.string.ingresa_gasolina,
                     leadingIcon = R.drawable.money_gas,
                     keyboardsOptions = KeyboardOptions.Default.copy(
-                        keyboardType = KeyboardType.Number,
+                        keyboardType = KeyboardType.Decimal,
                         imeAction = ImeAction.Next
                     ),
                     value = precioLitroEntrada,
                     onValueChanged = { precioLitroEntrada = it }
                 )
 
+                // Cantidad de litros.
                 EditNumberField(
                     label = R.string.litros,
                     leadingIcon = R.drawable.gasolina,
                     keyboardsOptions = KeyboardOptions.Default.copy(
-                        keyboardType = KeyboardType.Number,
-                        imeAction = if (darPropina) ImeAction.Next else ImeAction.Done
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = if (darPropina) {
+                            ImeAction.Next
+                        } else {
+                            ImeAction.Done
+                        }
                     ),
                     value = cantLitrosEntrada,
                     onValueChanged = { cantLitrosEntrada = it }
                 )
 
+                // El estado de este interruptor se guardará en includesTip.
                 AddOptionalData(
                     flagData = darPropina,
                     onflagCheckedChange = { darPropina = it }
@@ -196,17 +242,19 @@ fun CostGasContent(
                         label = R.string.propina,
                         leadingIcon = R.drawable.outline_18_up_rating_24,
                         keyboardsOptions = KeyboardOptions.Default.copy(
-                            keyboardType = KeyboardType.Number,
+                            keyboardType = KeyboardType.Decimal,
                             imeAction = ImeAction.Done
                         ),
                         value = propinaEntrada,
                         onValueChanged = { propinaEntrada = it }
                     )
                 }
+
+                // Interruptor para registrar kilometraje.
                 AddOptionalData(
                     flagData = guardarKilometros,
                     onflagCheckedChange = { guardarKilometros = it },
-                    question = stringResource(id = R.string.guardar_kilometraje)
+                    question = stringResource(R.string.guardar_kilometraje)
                 )
 
                 AnimatedVisibility(
@@ -218,7 +266,7 @@ fun CostGasContent(
                         label = R.string.kilometros,
                         leadingIcon = R.drawable.car__kilometer,
                         keyboardsOptions = KeyboardOptions.Default.copy(
-                            keyboardType = KeyboardType.Number,
+                            keyboardType = KeyboardType.Decimal,
                             imeAction = ImeAction.Done
                         ),
                         value = kilometrsRecorridos,
@@ -228,7 +276,7 @@ fun CostGasContent(
             }
         }
 
-        // Tarjeta destacada para el Total
+        // Muestra el total calculado.
         ElevatedCard(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -249,14 +297,19 @@ fun CostGasContent(
 
         Button(
             onClick = {
-                val currentDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                    .format(Date())
+                val currentDate = SimpleDateFormat(
+                    "dd/MM/yyyy",
+                    Locale.getDefault()
+                ).format(Date())
+
+                // Envía los datos y el estado del interruptor de propina.
                 onSaveTransaction(
                     precioLitro,
                     cantLitros,
                     propina,
                     currentDate,
-                    kilometraje
+                    kilometraje,
+                    darPropina
                 )
             },
             enabled = isFormValid,
@@ -272,14 +325,7 @@ fun CostGasContent(
 fun CostGasLayoutPreview() {
     CostoGasolinaTheme {
         CostGasContent(
-            onSaveTransaction = {
-                precio: Double,
-                litros: Double,
-                tip: Double,
-                date: String,
-                kilometers: Double ->
-            }
-
+            onSaveTransaction = { _, _, _, _, _, _ -> }
         )
     }
 }

@@ -8,5 +8,5 @@
     <string name="monto_total">Monto Total: %s</string>
     <string name="agregar_propina">¿Deseas agregar la propina?</string>
     <string name="guardar_kilometraje">¿Desea guardar el kilometraje?</string>
-    <string name="kilometros">100000</string>
+    <string name="kilometros">Kilometraje (km)</string>
 </resources>
